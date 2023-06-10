@@ -25,7 +25,7 @@ def get_article(article_ids):
     for article in article_ids:
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
         uri = article.dimension_values[1].value
-        id_match = re.match('/story/([a-zA-Z0-9_\-]+)', uri)
+        id_match = re.match('/story/(.+?)', uri)
         if id_match:
             post_id = id_match.group(1)
             if post_id:
