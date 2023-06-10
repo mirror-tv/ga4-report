@@ -30,25 +30,18 @@ def get_article(article_ids):
             post_id = id_match.group(1)
             if post_id:
                 post_gql = '''
-                    query{
-                        post(where:{slug:"%s"}){
-                            id,
-                            slug,
-                            sections{id, name, slug}
-                            title,
-                            style,
-                            heroImage{
-                                id, 
-                                resized{
-                                    original
-                                    w480,
-                                    w800,
-                                    w1200,
-                                    w1600,
-                                    w2400
-                                }
-                            },
-                        }
+                    query { 
+                      allPosts(where: { slug: "%s"}, orderBy: "publishTime_DESC") {
+                          id
+                          heroImage {
+                              tiny: urlTinySized
+                              mobile: urlMobileSized
+                          }
+                          name
+                          publishTime
+                          slug
+                          source
+                     }
                     }''' % (post_id)
                 query = gql(post_gql)
                 post = gql_client.execute(query)
