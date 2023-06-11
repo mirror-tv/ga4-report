@@ -47,11 +47,10 @@ def get_article(response):
                     }''' % (post_id)
                 query = gql(post_gql)
                 post = gql_client.execute(query)
-                print(post)
-                if isinstance(post, dict) and 'data' in post and "allPosts" in post["data"] and len(post['data']['allPosts']) > 0:
-                    print(post)
+                if isinstance(post, dict) and "allPosts" in post and len(post['allPosts']) > 0:
+                    print(post['allPosts'][0])
                     rows = rows + 1
-                    report.append(post['data']['allPosts'][0])
+                    report.append(post['allPosts'][0])
         if rows > 30:
             break
         #report.append({'title': row.dimension_values[0].value, 'uri': row.dimension_values[1].value, 'count': row.metric_values[0].value})
