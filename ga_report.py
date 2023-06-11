@@ -82,9 +82,9 @@ def popular_report(property_id):
         metrics=[Metric(name="screenPageViews")],
         date_ranges=[DateRange(start_date=start_date, end_date="today")],
     )
-    response = client.run_report(request)
     print("report result")
     print(response)
+    response = client.run_report(request)
 
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
