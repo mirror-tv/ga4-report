@@ -30,7 +30,7 @@ def get_article(response):
         if id_match:
             post_id = id_match.group(1)
             print(post_id)
-            if post_id and post_id[:3] is not 'mm-':
+            if post_id and post_id[:3] != 'mm-':
                 post_gql = '''
                     query { 
                       allPosts(where: { slug: "%s"}, orderBy: "publishTime_DESC") {
