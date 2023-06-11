@@ -83,8 +83,8 @@ def popular_report(property_id):
         date_ranges=[DateRange(start_date=start_date, end_date="today")],
     )
     print("report result")
-    print(response)
     response = client.run_report(request)
+    print(response)
 
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
