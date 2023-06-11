@@ -15,16 +15,16 @@ from google.analytics.data_v1beta.types import Dimension
 from google.analytics.data_v1beta.types import Metric
 from google.analytics.data_v1beta.types import RunReportRequest
 
-def get_article(article_ids):
+def get_article(response):
     GQL_ENDPOINT = os.environ['GQL_ENDPOINT']
     gql_transport = AIOHTTPTransport(url=GQL_ENDPOINT)
     gql_client = Client(transport=gql_transport,
                         fetch_schema_from_transport=False)
     report = []
     rows = 0
-    for article in article_ids:
+    for article in response.rows:
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
-        uri = article.dimension_values.value
+        uri = article.dimension_values[0].value
         print(uri)
         id_match = re.match('/story/(.+?)', uri)
         if id_match:
@@ -86,7 +86,7 @@ def popular_report(property_id):
     print("report result")
     print(response)
 
-    report = get_article(response.rows)
+    report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
     bucket = os.environ['BUCKET']
     upload_data(bucket, json.dumps(report, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular.json')
