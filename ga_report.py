@@ -26,7 +26,7 @@ def get_article(response):
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
         uri = article.dimension_values[1].value
         print(uri)
-        id_match = re.match('/story/(.+)', uri)
+        id_match = re.match('/story/([\w_]+)', uri)
         if id_match:
             post_id = id_match.group(1)
             print(post_id)
@@ -47,7 +47,7 @@ def get_article(response):
                     }''' % (post_id)
                 query = gql(post_gql)
                 post = gql_client.execute(query)
-                print(post_gql)
+                print(post)
                 if isinstance(post, dict) and 'data' in post and "allPosts" in post["data"] and len(post['data']['allPosts']) > 0:
                     print(post)
                     rows = rows + 1
