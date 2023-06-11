@@ -83,7 +83,11 @@ def popular_report(property_id):
         date_ranges=[DateRange(start_date=start_date, end_date="today")],
     )
     print("report result")
-    response = client.run_report(request)
+    try:
+        response = client.run_report(request)
+    except:
+        print("Failed to get GA report")
+        return "failed"
     print(response)
 
     report = get_article(response)
