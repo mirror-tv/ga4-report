@@ -24,7 +24,7 @@ def get_article(response):
     rows = 0
     for article in response.rows:
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
-        uri = article.dimension_values[0].value
+        uri = article.dimension_values[1].value
         print(uri)
         id_match = re.match('/story/(.+?)', uri)
         if id_match:
@@ -88,7 +88,7 @@ def popular_report(property_id):
     except:
         print("Failed to get GA report")
         return "failed"
-    print(response)
+    #print(response)
 
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
