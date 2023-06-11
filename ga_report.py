@@ -28,6 +28,7 @@ def get_article(article_ids):
         id_match = re.match('/story/(.+?)', uri)
         if id_match:
             post_id = id_match.group(1)
+            print(post_id)
             if post_id:
                 post_gql = '''
                     query { 
