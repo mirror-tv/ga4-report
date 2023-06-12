@@ -69,7 +69,7 @@ def popular_report(property_id):
     client = BetaAnalyticsDataClient()
 
     current_time = datetime.now()
-    start_datetime = current_time - timedelta(days=7)
+    start_datetime = current_time - timedelta(days=2)
     start_date = datetime.strftime(start_datetime, '%Y-%m-%d')
 
     request = RunReportRequest(
