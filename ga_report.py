@@ -36,8 +36,8 @@ def get_article(response):
                       allPosts(where: { slug: "%s"}, orderBy: "publishTime_DESC") {
                           id
                           heroImage {
-                              tiny: urlTinySized
-                              mobile: urlMobileSized
+                              urlTinySized
+                              urlMobileSized
                           }
                           name
                           publishTime
@@ -87,7 +87,7 @@ def popular_report(property_id):
     except:
         print("Failed to get GA report")
         return "failed"
-    #print(response)
+    print(response)
 
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
