@@ -22,15 +22,25 @@ def get_article(response):
                         fetch_schema_from_transport=False)
     report = []
     rows = 0
+    exclusive = 
+    ["aboutus",
+    "ad-sales",
+    "biography",
+    "complaint",
+    "faq",
+    "press-self-regulation",
+    "privacy",
+    "standards",
+    "webauthorization",
+    "aboutus"]
     for article in response.rows:
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
         uri = article.dimension_values[1].value
-        print(uri)
         id_match = re.match('/story/([\w-]+)', uri)
         if id_match:
             post_id = id_match.group(1)
             print(post_id)
-            if post_id and post_id[:3] != 'mm-':
+            if post_id and post_id[:3] != 'mm-' and post_id not in exclusive:
                 post_gql = '''
                     query { 
                       allPosts(where: { slug: "%s"}, orderBy: "publishTime_DESC") {
