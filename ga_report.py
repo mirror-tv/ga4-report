@@ -20,8 +20,9 @@ def get_article(response):
     gql_transport = AIOHTTPTransport(url=GQL_ENDPOINT)
     gql_client = Client(transport=gql_transport,
                         fetch_schema_from_transport=False)
-    report = []
+    report = { 'articles': [], 'yt': [] }
     rows = 0
+    yt_rows = 0
     exclusive = ["aboutus", "ad-sales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
     for article in response.rows:
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
@@ -50,8 +51,12 @@ def get_article(response):
                 if isinstance(post, dict) and "allPosts" in post and len(post['allPosts']) > 0:
                     print(post['allPosts'][0])
                     rows = rows + 1
-                    report.append(post['allPosts'][0])
-        if rows > 30:
+                    if rows <= 30:
+                        report['articles'].append(post['allPosts'][0])
+                    if 'source' in post['allPosts'][0] and post['allPosts'][0]['source'] == 'yt':
+                        report['yt'].append(post['allPosts'][0])
+                        yt_rows = yt_rows + 1
+        if rows > 30 and yt_rows > 50:
             break
         #report.append({'title': row.dimension_values[0].value, 'uri': row.dimension_values[1].value, 'count': row.metric_values[0].value})
     return report
@@ -92,7 +97,8 @@ def popular_report(property_id):
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
     bucket = os.environ['BUCKET']
-    upload_data(bucket, json.dumps(report, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular.json')
+    upload_data(bucket, json.dumps(report['articles'], ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular.json')
+    upload_data(bucket, json.dumps(report['yt'], ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular_video.json')
     return "Ok"
 
 def upload_data(bucket_name: str, data: str, content_type: str, destination_blob_name: str):
