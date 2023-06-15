@@ -97,8 +97,8 @@ def popular_report(property_id):
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
     bucket = os.environ['BUCKET']
-    upload_data(bucket, json.dumps(report['articles'], ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular.json')
-    upload_data(bucket, json.dumps(report['yt'], ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular_video.json')
+    upload_data(bucket, json.dumps(report['articles'], ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popularlist.json')
+    upload_data(bucket, json.dumps(report['yt'], ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular-videonews-list.json')
     return "Ok"
 
 def upload_data(bucket_name: str, data: str, content_type: str, destination_blob_name: str):
