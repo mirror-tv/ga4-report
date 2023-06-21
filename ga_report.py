@@ -77,6 +77,7 @@ def popular_report(property_id):
     current_time = datetime.now()
     start_datetime = current_time - timedelta(days=2)
     start_date = datetime.strftime(start_datetime, '%Y-%m-%d')
+    end_date = datetime.strftime(current_time, '%Y-%m-%d')
 
     request = RunReportRequest(
         property=f"properties/{property_id}",
@@ -98,8 +99,8 @@ def popular_report(property_id):
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
     bucket = os.environ['BUCKET']
-    popular_report = { "report": report['articles'], "start_date": start_date, "end_date": current_time, "generate_time": current_time}
-    popular_video = { "report": report['yt'], "start_date": start_date, "end_date": current_time, "generate_time": current_time }
+    popular_report = { "report": report['articles'], "start_date": start_date, "end_date": end_date, "generate_time": datetime.strftime(current_time, '%Y-%m-%d %H:%m')}
+    popular_video = { "report": report['yt'], "start_date": start_date, "end_date": end_date, "generate_time": datetime.strftime(current_time, '%Y-%m-%d %H:%m')}
     upload_data(bucket, json.dumps(popular_report, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popularlist.json')
     upload_data(bucket, json.dumps(popular_video, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular-videonews-list.json')
     return "Ok"
