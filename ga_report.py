@@ -20,7 +20,8 @@ def get_article(response):
     gql_transport = AIOHTTPTransport(url=GQL_ENDPOINT)
     gql_client = Client(transport=gql_transport,
                         fetch_schema_from_transport=False)
-    report = { 'articles': [], 'yt': [] }
+    report = {  'articles': { 'report':[] }, 
+                'yt': { 'report': [] } }
     rows = 0
     yt_rows = 0
     exclusive = ["aboutus", "ad-sales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
@@ -52,9 +53,9 @@ def get_article(response):
                     print(post['allPosts'][0])
                     rows = rows + 1
                     if rows <= 30:
-                        report['articles'].append(post['allPosts'][0])
+                        report['articles']['report'].append(post['allPosts'][0])
                     if 'source' in post['allPosts'][0] and post['allPosts'][0]['source'] == 'yt':
-                        report['yt'].append(post['allPosts'][0])
+                        report['yt']['report'].append(post['allPosts'][0])
                         yt_rows = yt_rows + 1
         if rows > 30 and yt_rows > 50:
             break
@@ -97,8 +98,8 @@ def popular_report(property_id):
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
     bucket = os.environ['BUCKET']
-    upload_data(bucket, json.dumps(report['articles'], ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popularlist.json')
-    upload_data(bucket, json.dumps(report['yt'], ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular-videonews-list.json')
+    upload_data(bucket, json.dumps({ report['articles'], "start_date": start_date, "end_date": current_time, "generate_time": current_time}, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popularlist.json')
+    upload_data(bucket, json.dumps({ report['yt'], "start_date": start_date, "end_date": current_time, "generate_time": current_time }, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular-videonews-list.json')
     return "Ok"
 
 def upload_data(bucket_name: str, data: str, content_type: str, destination_blob_name: str):
