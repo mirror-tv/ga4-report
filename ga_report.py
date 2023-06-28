@@ -28,6 +28,7 @@ def get_article(response):
     exclusive = ["aboutus", "ad-sales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
     for article in response.rows:
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
+        print(article)
         uri = article.dimension_values[1].value
         id_match = re.match('/story/([\w-]+)', uri)
         if id_match:
