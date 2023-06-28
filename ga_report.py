@@ -52,12 +52,12 @@ def get_article(response):
                 if isinstance(post, dict) and "allPosts" in post and len(post['allPosts']) > 0:
                     print(post['allPosts'][0])
                     rows = rows + 1
-                    if rows <= 30:
+                    if rows <= 10:
                         report['articles'].append(post['allPosts'][0])
                     if 'source' in post['allPosts'][0] and post['allPosts'][0]['source'] == 'yt':
                         report['yt'].append(post['allPosts'][0])
                         yt_rows = yt_rows + 1
-        if rows > 30 and yt_rows > 50:
+        if rows > 10 and yt_rows > 10:
             break
         #report.append({'title': row.dimension_values[0].value, 'uri': row.dimension_values[1].value, 'count': row.metric_values[0].value})
     return report
