@@ -28,12 +28,10 @@ def get_article(response):
     exclusive = ["aboutus", "ad-sales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
     for article in response.rows:
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
-        print(article)
         uri = article.dimension_values[1].value
         id_match = re.match('/story/([\w-]+)', uri)
         if id_match:
             post_id = id_match.group(1)
-            print(post_id)
             if post_id and post_id[:3] != 'mm-' and post_id not in exclusive:
                 post_gql = '''
                     query { 
@@ -52,7 +50,6 @@ def get_article(response):
                 query = gql(post_gql)
                 post = gql_client.execute(query)
                 if isinstance(post, dict) and "allPosts" in post and len(post['allPosts']) > 0:
-                    print(post['allPosts'][0])
                     rows = rows + 1
                     if rows < 10:
                         report['articles'].append(post['allPosts'][0])
@@ -97,7 +94,6 @@ def popular_report(property_id):
     except:
         print("Failed to get GA report")
         return "failed"
-    print(response)
 
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
