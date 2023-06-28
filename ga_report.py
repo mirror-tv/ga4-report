@@ -51,7 +51,7 @@ def get_article(response):
                 post = gql_client.execute(query)
                 if isinstance(post, dict) and "allPosts" in post and len(post['allPosts']) > 0:
                     rows = rows + 1
-                    if rows < 10:
+                    if rows <= 10:
                         report['articles'].append(post['allPosts'][0])
                     if 'source' in post['allPosts'][0] and post['allPosts'][0]['source'] == 'yt' and post['allPosts'][0]['id'] not in yt_id:
                         yt_id.append(post['allPosts'][0]['id'])
