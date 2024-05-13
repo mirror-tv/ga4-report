@@ -1,4 +1,4 @@
-FROM gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+FROM gcr.io/google.com/cloudsdktool/cloud-sdk:latest
 
 COPY .  /usr/src/app/ga4-report
 WORKDIR  /usr/src/app/ga4-report
