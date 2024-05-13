@@ -1,4 +1,4 @@
-FROM gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+FROM gcr.io/google.com/cloudsdktool/cloud-sdk:latest
 
 COPY .  /usr/src/app/ga4-report
 WORKDIR  /usr/src/app/ga4-report
@@ -8,7 +8,7 @@ RUN addgroup user && adduser -h /home/user -D user -G user -s /bin/sh
 RUN apt-get update \
     && apt-get install -y gcc libc-dev libxslt-dev libxml2 libpq-dev \
     && pip install --upgrade pip \
-    && pip install -r requirements.txt
+    && pip install -r requirements.txt 
 
 ENV LC_ALL="en_US.utf8"
 
