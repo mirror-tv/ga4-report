@@ -22,6 +22,7 @@ def get_article(response):
                         fetch_schema_from_transport=False)
     report = {  'articles': [] , 
                 'yt': [] }
+    id_bucket = []
     yt_id = []
     rows = 0
     yt_rows = 0
@@ -32,6 +33,8 @@ def get_article(response):
         id_match = re.match('/story/([\w-]+)', uri)
         if id_match:
             post_id = id_match.group(1)
+            if post_id in id_bucket:
+                continue
             if post_id and post_id[:3] != 'mm-' and post_id not in exclusive:
                 post_gql = '''
                     query { 
@@ -57,6 +60,7 @@ def get_article(response):
                         yt_id.append(post['allPosts'][0]['id'])
                         report['yt'].append(post['allPosts'][0])
                         yt_rows = yt_rows + 1
+                id_bucket.append(post_id)
         if rows > 10 and yt_rows > 10:
             break
         #report.append({'title': row.dimension_values[0].value, 'uri': row.dimension_values[1].value, 'count': row.metric_values[0].value})
