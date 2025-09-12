@@ -47,6 +47,7 @@ def get_article(response):
                           name
                           publishTime
                           slug
+                          exclusive
                           source
                      }
                     }''' % (post_id)
