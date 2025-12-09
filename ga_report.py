@@ -109,7 +109,7 @@ def popular_report(property_id):
     try:
         response = client.run_report(request)
         print(f"✓ Got response with {len(response.rows)} rows")
-    except:
+    except Exception as e:
         print("Failed to get GA report")
         print(f"Error type: {type(e).__name__}")
         print(f"Error message: {str(e)}")
