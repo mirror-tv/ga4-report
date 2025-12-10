@@ -26,7 +26,7 @@ def get_article(response):
     yt_id = []
     rows = 0
     yt_rows = 0
-    exclusive = ["aboutus", "ad-sales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
+    exclusive = ["aboutus", "ad-sales", "adsales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
     for article in response.rows:
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
         uri = article.dimension_values[1].value
@@ -48,6 +48,7 @@ def get_article(response):
                           publishTime
                           slug
                           source
+                          exclusive
                      }
                     }''' % (post_id)
                 query = gql(post_gql)
@@ -55,10 +56,14 @@ def get_article(response):
                 if isinstance(post, dict) and "allPosts" in post and len(post['allPosts']) > 0:
                     rows = rows + 1
                     if rows <= 30:
-                        report['articles'].append(post['allPosts'][0])
+                        article_data = post['allPosts'][0].copy()
+                        article_data.pop('exclusive', None)
+                        report['articles'].append(article_data)
                     if 'source' in post['allPosts'][0] and post['allPosts'][0]['source'] == 'yt' and post['allPosts'][0]['id'] not in yt_id:
                         yt_id.append(post['allPosts'][0]['id'])
-                        report['yt'].append(post['allPosts'][0])
+                        yt_data = post['allPosts'][0].copy()
+                        yt_data.pop('exclusive', None)
+                        report['yt'].append(yt_data)
                         yt_rows = yt_rows + 1
                 id_bucket.append(post_id)
         if rows > 30 and yt_rows > 10:
