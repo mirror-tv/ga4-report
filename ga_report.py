@@ -47,7 +47,6 @@ def get_article(response):
                           name
                           publishTime
                           slug
-                          exclusive
                           source
                      }
                     }''' % (post_id)
@@ -76,16 +75,12 @@ def popular_report(property_id):
     # Using a default constructor instructs the client to use the credentials
     # specified in GOOGLE_APPLICATION_CREDENTIALS environment variable.
 
-    print(f"=== Starting GA Report ===")
-    print(f"Property ID: {property_id}")
-    print(f"Using default service account credentials (Cloud Run)")
     if sys.stdout:
         sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
     try:    
         client = BetaAnalyticsDataClient()
-        print("✓ BetaAnalyticsDataClient initialized")
     except Exception as e:
-        print(f"✗ Failed to initialize client: {type(e).__name__}")
+        print(f"Failed to initialize client: {type(e).__name__}")
         print(f"Error details: {str(e)}")
         return "failed"
     
@@ -93,8 +88,6 @@ def popular_report(property_id):
     start_datetime = current_time - timedelta(days=2)
     start_date = datetime.strftime(start_datetime, '%Y-%m-%d')
     end_date = datetime.strftime(current_time, '%Y-%m-%d')
-
-    print(f"Date range: {start_date} to {end_date}")
 
     request = RunReportRequest(
         property=f"properties/{property_id}",
@@ -105,10 +98,8 @@ def popular_report(property_id):
         metrics=[Metric(name="screenPageViews")],
         date_ranges=[DateRange(start_date=start_date, end_date="today")],
     )
-    print("Sending request to GA...")
     try:
         response = client.run_report(request)
-        print(f"✓ Got response with {len(response.rows)} rows")
     except Exception as e:
         print("Failed to get GA report")
         print(f"Error type: {type(e).__name__}")
