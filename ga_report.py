@@ -26,7 +26,7 @@ def get_article(response):
     yt_id = []
     rows = 0
     yt_rows = 0
-    exclusive = ["aboutus", "ad-sales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
+    exclusive = ["aboutus", "ad-sales", "adsales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
     for article in response.rows:
         #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
         uri = article.dimension_values[1].value
@@ -47,22 +47,26 @@ def get_article(response):
                           name
                           publishTime
                           slug
-                          exclusive
                           source
+                          exclusive
                      }
                     }''' % (post_id)
                 query = gql(post_gql)
                 post = gql_client.execute(query)
                 if isinstance(post, dict) and "allPosts" in post and len(post['allPosts']) > 0:
                     rows = rows + 1
-                    if rows <= 10:
-                        report['articles'].append(post['allPosts'][0])
+                    if rows <= 30:
+                        article_data = post['allPosts'][0].copy()
+                        article_data.pop('exclusive', None)
+                        report['articles'].append(article_data)
                     if 'source' in post['allPosts'][0] and post['allPosts'][0]['source'] == 'yt' and post['allPosts'][0]['id'] not in yt_id:
                         yt_id.append(post['allPosts'][0]['id'])
-                        report['yt'].append(post['allPosts'][0])
+                        yt_data = post['allPosts'][0].copy()
+                        yt_data.pop('exclusive', None)
+                        report['yt'].append(yt_data)
                         yt_rows = yt_rows + 1
                 id_bucket.append(post_id)
-        if rows > 10 and yt_rows > 10:
+        if rows > 30 and yt_rows > 10:
             break
         #report.append({'title': row.dimension_values[0].value, 'uri': row.dimension_values[1].value, 'count': row.metric_values[0].value})
     return report
@@ -75,10 +79,16 @@ def popular_report(property_id):
 
     # Using a default constructor instructs the client to use the credentials
     # specified in GOOGLE_APPLICATION_CREDENTIALS environment variable.
+
     if sys.stdout:
         sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
-    client = BetaAnalyticsDataClient()
-
+    try:    
+        client = BetaAnalyticsDataClient()
+    except Exception as e:
+        print(f"Failed to initialize client: {type(e).__name__}")
+        print(f"Error details: {str(e)}")
+        return "failed"
+    
     current_time = datetime.now()
     start_datetime = current_time - timedelta(days=2)
     start_date = datetime.strftime(start_datetime, '%Y-%m-%d')
@@ -93,11 +103,12 @@ def popular_report(property_id):
         metrics=[Metric(name="screenPageViews")],
         date_ranges=[DateRange(start_date=start_date, end_date="today")],
     )
-    print("report result")
     try:
         response = client.run_report(request)
-    except:
+    except Exception as e:
         print("Failed to get GA report")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
         return "failed"
 
     report = get_article(response)
