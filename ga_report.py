@@ -3,24 +3,30 @@ import re
 import json
 import sys
 import codecs
-from gql.transport.aiohttp import AIOHTTPTransport
-from gql import gql, Client
+from gql import gql
 from datetime import datetime, timedelta
-from google.cloud import datastore
-from google.oauth2 import service_account
 from google.cloud import storage
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import DateRange
 from google.analytics.data_v1beta.types import Dimension
 from google.analytics.data_v1beta.types import Metric
 from google.analytics.data_v1beta.types import RunReportRequest
+from gql_client import GraphQLClient
 
 def get_article(response):
-    GQL_ENDPOINT = os.environ['GQL_ENDPOINT']
-    gql_transport = AIOHTTPTransport(url=GQL_ENDPOINT)
-    gql_client = Client(transport=gql_transport,
-                        fetch_schema_from_transport=False)
-    report = {  'articles': [] , 
+    graphql_client = GraphQLClient()
+
+    try:
+        gql_client = graphql_client.get_authenticated_client()
+        print("Using authenticated GraphQL client")
+    except ValueError as e:
+        print(f"Authentication credentials not provided, using basic client: {e}")
+        gql_client = graphql_client.get_client()
+    except Exception as e:
+        print(f"Authentication failed, using basic client: {e}")
+        gql_client = graphql_client.get_client()
+
+    report = {  'articles': [] ,
                 'yt': [] }
     id_bucket = []
     yt_id = []
@@ -28,7 +34,6 @@ def get_article(response):
     yt_rows = 0
     exclusive = ["aboutus", "ad-sales", "adsales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
     for article in response.rows:
-        #writer.writerow([row.dimension_values[0].value, row.dimension_values[1].value.encode('utf-8'), row.metric_values[0].value])
         uri = article.dimension_values[1].value
         id_match = re.match('/story/([\w-]+)', uri)
         if id_match:
@@ -37,12 +42,14 @@ def get_article(response):
                 continue
             if post_id and post_id[:3] != 'mm-' and post_id not in exclusive:
                 post_gql = '''
-                    query { 
-                      allPosts(where: { slug: "%s"}, orderBy: "publishTime_DESC") {
+                    query {
+                      posts(where: { slug: { equals: "%s"}}, orderBy: [{ publishTime: desc }]) {
                           id
                           heroImage {
-                              urlTinySized
-                              urlMobileSized
+                              resized {
+                                  w480
+                                  w800
+                              }
                           }
                           name
                           publishTime
@@ -53,33 +60,45 @@ def get_article(response):
                     }''' % (post_id)
                 query = gql(post_gql)
                 post = gql_client.execute(query)
-                if isinstance(post, dict) and "allPosts" in post and len(post['allPosts']) > 0:
+                if isinstance(post, dict) and "posts" in post and len(post['posts']) > 0:
                     rows = rows + 1
                     if rows <= 30:
-                        article_data = post['allPosts'][0].copy()
+                        article_data = post['posts'][0].copy()
                         article_data.pop('exclusive', None)
+                        if 'heroImage' in article_data and article_data['heroImage']:
+                            if 'resized' in article_data['heroImage'] and article_data['heroImage']['resized']:
+                                resized = article_data['heroImage']['resized']
+                                article_data['heroImage'] = {
+                                    'urlTinySized': resized.get('w480'),
+                                    'urlMobileSized': resized.get('w800')
+                                }
+                            else:
+                                article_data['heroImage'] = None
                         report['articles'].append(article_data)
-                    if 'source' in post['allPosts'][0] and post['allPosts'][0]['source'] == 'yt' and post['allPosts'][0]['id'] not in yt_id:
-                        yt_id.append(post['allPosts'][0]['id'])
-                        yt_data = post['allPosts'][0].copy()
+                    if 'source' in post['posts'][0] and post['posts'][0]['source'] == 'yt' and post['posts'][0]['id'] not in yt_id:
+                        yt_id.append(post['posts'][0]['id'])
+                        yt_data = post['posts'][0].copy()
                         yt_data.pop('exclusive', None)
+                        if 'heroImage' in yt_data and yt_data['heroImage']:
+                            if 'resized' in yt_data['heroImage'] and yt_data['heroImage']['resized']:
+                                resized = yt_data['heroImage']['resized']
+                                yt_data['heroImage'] = {
+                                    'urlTinySized': resized.get('w480'),
+                                    'urlMobileSized': resized.get('w800')
+                                }
+                            else:
+                                yt_data['heroImage'] = None
                         report['yt'].append(yt_data)
                         yt_rows = yt_rows + 1
                 id_bucket.append(post_id)
         if rows > 30 and yt_rows > 10:
             break
-        #report.append({'title': row.dimension_values[0].value, 'uri': row.dimension_values[1].value, 'count': row.metric_values[0].value})
     return report
 
 def popular_report(property_id):
     """Runs a simple report on a Google Analytics 4 property."""
-    # TODO(developer): Uncomment this variable and replace with your
-    #  Google Analytics 4 property ID before running the sample.
-    # property_id = "311149968"
-
     # Using a default constructor instructs the client to use the credentials
     # specified in GOOGLE_APPLICATION_CREDENTIALS environment variable.
-
     if sys.stdout:
         sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
     try:    
@@ -114,22 +133,18 @@ def popular_report(property_id):
     report = get_article(response)
     gcs_path = os.environ['GCS_PATH']
     bucket = os.environ['BUCKET']
-    popular_report = { "report": report['articles'], "start_date": start_date, "end_date": end_date, "generate_time": datetime.strftime(current_time, '%Y-%m-%d %H:%m')}
-    popular_video = { "report": report['yt'], "start_date": start_date, "end_date": end_date, "generate_time": datetime.strftime(current_time, '%Y-%m-%d %H:%m')}
+    popular_report = { "report": report['articles'], "start_date": start_date, "end_date": end_date, "generate_time": datetime.strftime(current_time, '%Y-%m-%d %H:%M')}
+    popular_video = { "report": report['yt'], "start_date": start_date, "end_date": end_date, "generate_time": datetime.strftime(current_time, '%Y-%m-%d %H:%M')}
     upload_data(bucket, json.dumps(popular_report, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popularlist.json')
     upload_data(bucket, json.dumps(popular_video, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular-videonews-list.json')
     return "Ok"
 
 def upload_data(bucket_name: str, data: str, content_type: str, destination_blob_name: str):
     '''Uploads a file to the bucket.'''
-    # bucket_name = 'your-bucket-name'
-    # data = 'storage-object-content'
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
-    # blob.content_encoding = 'gzip'
     blob.upload_from_string(
-        # data=gzip.compress(data=data, compresslevel=9),
         data=bytes(data),
         content_type=content_type, client=storage_client)
     blob.content_language = 'zh'

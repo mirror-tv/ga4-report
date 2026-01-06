@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask
 from ga_report import popular_report
 import os
 
