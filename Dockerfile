@@ -1,24 +1,30 @@
-FROM gcr.io/google.com/cloudsdktool/cloud-sdk:latest
+FROM python:3.11-slim
 
-COPY .  /usr/src/app/ga4-report
-WORKDIR  /usr/src/app/ga4-report
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    LC_ALL=C.UTF-8 \
+    LANG=C.UTF-8
 
-RUN addgroup user && adduser -h /home/user -D user -G user -s /bin/sh
 
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        python3-venv python3-dev build-essential \
-        libpq-dev libxml2-dev libxslt1-dev zlib1g-dev \
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    gcc \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 建立 Python venv 以避免 PEP 668（externally-managed-environment）
-RUN python3 -m venv /opt/venv
+# 建立虛擬環境 (避免 PEP 668 限制，並保持環境隔離)
+RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
 
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt 
+COPY requirements.txt .
 
-ENV LC_ALL="en_US.utf8"
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+COPY . .
 
 EXPOSE 8080
-CMD ["/opt/venv/bin/uwsgi", "--ini", "server.ini"]
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
