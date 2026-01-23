@@ -5,23 +5,26 @@ ENV PYTHONUNBUFFERED=1 \
     LC_ALL=C.UTF-8 \
     LANG=C.UTF-8
 
-
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gcc \
     python3-dev \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-# 建立虛擬環境 (避免 PEP 668 限制，並保持環境隔離)
+# 安裝 uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# 建立虛擬環境
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
 
 COPY requirements.txt .
 
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# 使用 uv 安裝套件
+RUN uv pip install --no-cache -r requirements.txt
 
 COPY . .
 
