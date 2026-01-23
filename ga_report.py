@@ -1,159 +1,155 @@
 import os
 import re
 import json
-import sys
-import codecs
-from gql import gql
 from datetime import datetime, timedelta
-from google.cloud import storage
-from google.analytics.data_v1beta import BetaAnalyticsDataClient
-from google.analytics.data_v1beta.types import DateRange
-from google.analytics.data_v1beta.types import Dimension
-from google.analytics.data_v1beta.types import Metric
-from google.analytics.data_v1beta.types import RunReportRequest
+from google.cloud import storage, exceptions
+from google.analytics.data_v1beta import BetaAnalyticsDataAsyncClient
+from google.analytics.data_v1beta.types import (
+    DateRange, 
+    Dimension, 
+    Metric, 
+    RunReportRequest
+)
 from gql_client import GraphQLClient
+from gql_queries import GET_POSTS_BY_SLUGS
 
-def get_article(response):
+
+def format_post_data(post):
+    data = post.copy()
+    data.pop('exclusive', None)
+    if 'heroImage' in data and data['heroImage']:
+        resized = data['heroImage'].get('resized')
+        if resized:
+            data['heroImage'] = {
+                'urlTinySized': resized.get('w480'),
+                'urlMobileSized': resized.get('w800')
+            }
+        else:
+            data['heroImage'] = None
+    return data
+
+
+async def get_article_async(response):
     graphql_client = GraphQLClient()
+    gql_client = await graphql_client.get_authenticated_client()
 
-    try:
-        gql_client = graphql_client.get_authenticated_client()
-        print("Using authenticated GraphQL client")
-    except ValueError as e:
-        print(f"Authentication credentials not provided, using basic client: {e}")
-        gql_client = graphql_client.get_client()
-    except Exception as e:
-        print(f"Authentication failed, using basic client: {e}")
-        gql_client = graphql_client.get_client()
-
-    report = {  'articles': [] ,
-                'yt': [] }
+    target_slugs = []
     id_bucket = []
-    yt_id = []
-    rows = 0
-    yt_rows = 0
-    exclusive = ["aboutus", "ad-sales", "adsales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization", "aboutus"]
-    for article in response.rows:
-        uri = article.dimension_values[1].value
+    exclusive = ["aboutus", "ad-sales", "adsales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization"]
+    
+    for row in response.rows:
+        uri = row.dimension_values[1].value
         id_match = re.match('/story/([\w-]+)', uri)
         if id_match:
             post_id = id_match.group(1)
             if post_id in id_bucket:
                 continue
             if post_id and post_id[:3] != 'mm-' and post_id not in exclusive:
-                post_gql = '''
-                    query {
-                      posts(where: { slug: { equals: "%s"}}, orderBy: [{ publishTime: desc }]) {
-                          id
-                          heroImage {
-                              resized {
-                                  w480
-                                  w800
-                              }
-                          }
-                          name
-                          publishTime
-                          slug
-                          source
-                          exclusive
-                     }
-                    }''' % (post_id)
-                query = gql(post_gql)
-                post = gql_client.execute(query)
-                if isinstance(post, dict) and "posts" in post and len(post['posts']) > 0:
-                    rows = rows + 1
-                    if rows <= 30:
-                        article_data = post['posts'][0].copy()
-                        article_data.pop('exclusive', None)
-                        if 'heroImage' in article_data and article_data['heroImage']:
-                            if 'resized' in article_data['heroImage'] and article_data['heroImage']['resized']:
-                                resized = article_data['heroImage']['resized']
-                                article_data['heroImage'] = {
-                                    'urlTinySized': resized.get('w480'),
-                                    'urlMobileSized': resized.get('w800')
-                                }
-                            else:
-                                article_data['heroImage'] = None
-                        report['articles'].append(article_data)
-                    if 'source' in post['posts'][0] and post['posts'][0]['source'] == 'yt' and post['posts'][0]['id'] not in yt_id:
-                        yt_id.append(post['posts'][0]['id'])
-                        yt_data = post['posts'][0].copy()
-                        yt_data.pop('exclusive', None)
-                        if 'heroImage' in yt_data and yt_data['heroImage']:
-                            if 'resized' in yt_data['heroImage'] and yt_data['heroImage']['resized']:
-                                resized = yt_data['heroImage']['resized']
-                                yt_data['heroImage'] = {
-                                    'urlTinySized': resized.get('w480'),
-                                    'urlMobileSized': resized.get('w800')
-                                }
-                            else:
-                                yt_data['heroImage'] = None
-                        report['yt'].append(yt_data)
-                        yt_rows = yt_rows + 1
+                target_slugs.append(post_id)
                 id_bucket.append(post_id)
+
+    if not target_slugs:
+        return {'articles': [], 'yt': []}
+
+    # 執行批次查詢
+    try:
+        async with gql_client as session:
+            result = await session.execute(GET_POSTS_BY_SLUGS, variable_values={"slugs": target_slugs})
+            posts_from_db = result.get('posts', [])
+    except Exception as e:
+        print(f"Batch GraphQL query failed: {e}")
+        return {'articles': [], 'yt': []}
+
+    # 建立對照表並排序
+    posts_map = {p['slug']: p for p in posts_from_db}
+
+    report = {'articles': [], 'yt': []}
+    yt_id = [] 
+    rows = 0
+    yt_rows = 0
+
+    for slug in target_slugs:
+        post = posts_map.get(slug)
+        if not post:
+            continue
+            
+        rows += 1
+        if rows <= 30:
+            report['articles'].append(format_post_data(post))
+            
+        if post.get('source') == 'yt' and post['id'] not in yt_id:
+            yt_id.append(post['id'])
+            report['yt'].append(format_post_data(post))
+            yt_rows += 1
+            
         if rows > 30 and yt_rows > 10:
             break
+
     return report
 
-def popular_report(property_id):
-    """Runs a simple report on a Google Analytics 4 property."""
-    # Using a default constructor instructs the client to use the credentials
-    # specified in GOOGLE_APPLICATION_CREDENTIALS environment variable.
-    if sys.stdout:
-        sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+
+async def popular_report(property_id):
     try:    
-        client = BetaAnalyticsDataClient()
+        client = BetaAnalyticsDataAsyncClient()
     except Exception as e:
-        print(f"Failed to initialize client: {type(e).__name__}")
-        print(f"Error details: {str(e)}")
+        print(f"Failed to initialize GA client: {e}")
         return "failed"
     
     current_time = datetime.now()
-    start_datetime = current_time - timedelta(days=2)
-    start_date = datetime.strftime(start_datetime, '%Y-%m-%d')
-    end_date = datetime.strftime(current_time, '%Y-%m-%d')
+    start_date = (current_time - timedelta(days=2)).strftime('%Y-%m-%d')
+    end_date = current_time.strftime('%Y-%m-%d')
 
     request = RunReportRequest(
         property=f"properties/{property_id}",
-        dimensions=[
-		    Dimension(name="pageTitle"),
-		    Dimension(name="pagePath")
-		],
+        dimensions=[Dimension(name="pageTitle"), Dimension(name="pagePath")],
         metrics=[Metric(name="screenPageViews")],
         date_ranges=[DateRange(start_date=start_date, end_date="today")],
     )
+
     try:
-        response = client.run_report(request)
+        response = await client.run_report(request)
     except Exception as e:
-        print("Failed to get GA report")
-        print(f"Error type: {type(e).__name__}")
-        print(f"Error message: {str(e)}")
+        print(f"Failed to get GA report: {e}")
         return "failed"
 
-    report = get_article(response)
-    gcs_path = os.environ['GCS_PATH']
-    bucket = os.environ['BUCKET']
-    popular_report = { "report": report['articles'], "start_date": start_date, "end_date": end_date, "generate_time": datetime.strftime(current_time, '%Y-%m-%d %H:%M')}
-    popular_video = { "report": report['yt'], "start_date": start_date, "end_date": end_date, "generate_time": datetime.strftime(current_time, '%Y-%m-%d %H:%M')}
-    upload_data(bucket, json.dumps(popular_report, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popularlist.json')
-    upload_data(bucket, json.dumps(popular_video, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular-videonews-list.json')
+    report_data = await get_article_async(response)
+    
+    gcs_path = os.environ.get('GCS_PATH', '')
+    bucket_name = os.environ.get('BUCKET', '')
+    gen_time_str = current_time.strftime('%Y-%m-%d %H:%M')
+
+    popular_list = { 
+        "report": report_data['articles'], 
+        "start_date": start_date, 
+        "end_date": end_date, 
+        "generate_time": gen_time_str
+    }
+    popular_video = { 
+        "report": report_data['yt'], 
+        "start_date": start_date, 
+        "end_date": end_date, 
+        "generate_time": gen_time_str
+    }
+
+    upload_data(bucket_name, json.dumps(popular_list, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popularlist.json')
+    upload_data(bucket_name, json.dumps(popular_video, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular-videonews-list.json')
+    
     return "Ok"
 
-def upload_data(bucket_name: str, data: str, content_type: str, destination_blob_name: str):
-    '''Uploads a file to the bucket.'''
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(destination_blob_name)
-    blob.upload_from_string(
-        data=bytes(data),
-        content_type=content_type, client=storage_client)
-    blob.content_language = 'zh'
-    blob.cache_control = 'max-age=300,public'
-    blob.patch()
 
-if __name__ == "__main__":  
-	if 'GA_RESOURCE_ID' in os.environ:
-		ga_id = os.environ['GA_RESOURCE_ID']
-	else:
-		ga_id = "311149968"
-	popular_report(ga_id)
+def upload_data(bucket_name, data, content_type, destination_blob_name):
+    try:
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_string(data=data, content_type=content_type)
+        blob.content_language = 'zh'
+        blob.cache_control = 'max-age=300,public'
+        blob.patch()
+        print(f"Successfully uploaded: {destination_blob_name}")
+        return True
+    except exceptions.GoogleCloudError as e:
+        print(f"Failed to upload {destination_blob_name} to GCS: {e}")
+    except Exception as e:
+        print(f"Unexpected error during GCS upload: {e}")
+    return False
