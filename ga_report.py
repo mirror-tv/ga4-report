@@ -2,6 +2,7 @@ import os
 import re
 import json
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from google.cloud import storage, exceptions
 from google.analytics.data_v1beta import BetaAnalyticsDataAsyncClient
 from google.analytics.data_v1beta.types import (
@@ -12,6 +13,7 @@ from google.analytics.data_v1beta.types import (
 )
 from gql_client import GraphQLClient
 from gql_queries import GET_POSTS_BY_SLUGS
+
 
 
 def format_post_data(post):
@@ -94,8 +96,8 @@ async def popular_report(property_id):
     except Exception as e:
         print(f"Failed to initialize GA client: {e}")
         return "failed"
-    
-    current_time = datetime.now()
+    tz = ZoneInfo("Asia/Taipei")
+    current_time = datetime.now(tz)
     start_date = (current_time - timedelta(days=2)).strftime('%Y-%m-%d')
     end_date = current_time.strftime('%Y-%m-%d')
 
