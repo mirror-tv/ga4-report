@@ -23,8 +23,8 @@ def format_post_data(post):
         resized = data['heroImage'].get('resized')
         if resized:
             data['heroImage'] = {
-                'urlTinySized': resized.get('w480'),
-                'urlMobileSized': resized.get('w800')
+                'w480': resized.get('w480'),
+                'w800': resized.get('w800')
             }
         else:
             data['heroImage'] = None
