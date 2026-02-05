@@ -36,7 +36,7 @@ async def get_article_async(response):
     gql_client = await graphql_client.get_authenticated_client()
 
     target_slugs = []
-    id_bucket = []
+    id_bucket = set()
     exclusive = ["aboutus", "ad-sales", "adsales", "biography", "complaint", "faq", "press-self-regulation", "privacy", "standards", "webauthorization"]
     
     for row in response.rows:
@@ -48,7 +48,7 @@ async def get_article_async(response):
                 continue
             if post_id and post_id[:3] != 'mm-' and post_id not in exclusive:
                 target_slugs.append(post_id)
-                id_bucket.append(post_id)
+                id_bucket.add(post_id)
 
     if not target_slugs:
         return {'articles': [], 'yt': []}
@@ -66,7 +66,7 @@ async def get_article_async(response):
     posts_map = {p['slug']: p for p in posts_from_db}
 
     report = {'articles': [], 'yt': []}
-    yt_id = [] 
+    yt_id = set()
     rows = 0
     yt_rows = 0
 
@@ -80,7 +80,7 @@ async def get_article_async(response):
             report['articles'].append(format_post_data(post))
             
         if post.get('source') == 'yt' and post['id'] not in yt_id:
-            yt_id.append(post['id'])
+            yt_id.add(post['id'])
             report['yt'].append(format_post_data(post))
             yt_rows += 1
             
@@ -133,9 +133,11 @@ async def popular_report(property_id):
         "generate_time": gen_time_str
     }
 
-    upload_data(bucket_name, json.dumps(popular_list, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popularlist.json')
-    upload_data(bucket_name, json.dumps(popular_video, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular-videonews-list.json')
-    
+    result1 = upload_data(bucket_name, json.dumps(popular_list, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popularlist.json')
+    result2 = upload_data(bucket_name, json.dumps(popular_video, ensure_ascii=False).encode('utf8'), 'application/json', gcs_path + 'popular-videonews-list.json')
+
+    if not result1 or not result2:
+        return "failed"
     return "Ok"
 
 
