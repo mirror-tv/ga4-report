@@ -18,23 +18,10 @@ from gql_queries import GET_POSTS_BY_SLUGS
 def format_post_data(post):
     data = post.copy()
     data.pop('exclusive', None)
-    data['heroImageWebp'] = None
-    if 'heroImage' in data and data['heroImage']:
-        resized = data['heroImage'].get('resized')
-        resized_webp = data['heroImage'].get('resizedWebp') or {}
-        if resized:
-            data['heroImage'] = {
-                'w480': resized.get('w480'),
-                'w800': resized.get('w800')
-            }
-            w480_webp = resized_webp.get('w480')
-            w800_webp = resized_webp.get('w800')
-            data['heroImageWebp'] = {
-                'w480': w480_webp,
-                'w800': w800_webp
-            } if w480_webp or w800_webp else None
-        else:
-            data['heroImage'] = None
+    hero = data.get('heroImage') or {}
+    resized = hero.get('resized') or {}
+    original = resized.get('original')
+    data['heroImage'] = {'original': original} if original else None
     return data
 
 
@@ -55,7 +42,7 @@ async def get_article_async(response):
 
     for row in response.rows:
         uri = row.dimension_values[1].value
-        id_match = re.match('/story/([\w-]+)', uri)
+        id_match = re.match(r'/story/([\w-]+)', uri)
         if not id_match:
             continue
         post_id = id_match.group(1)

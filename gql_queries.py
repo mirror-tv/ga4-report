@@ -7,12 +7,7 @@ GET_POSTS_BY_SLUGS = gql("""
           id
           heroImage {
               resized {
-                  w480
-                  w800
-              }
-              resizedWebp {
-                  w480
-                  w800
+                  original
               }
           }
           name
