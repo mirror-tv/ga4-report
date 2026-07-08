@@ -20,8 +20,7 @@ def format_post_data(post):
     data.pop('exclusive', None)
     hero = data.get('heroImage') or {}
     resized = hero.get('resized') or {}
-    original = resized.get('original')
-    data['heroImage'] = {'original': original} if original else None
+    data['heroImage'] = resized.get('original') or None
     return data
 
 
