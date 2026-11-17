@@ -35,6 +35,7 @@ images:
   - >-
     $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
 options:
+  logging: CLOUD_LOGGING_ONLY
   substitutionOption: ALLOW_LOOSE
 substitutions:
   _AR_HOSTNAME: asia-east1-docker.pkg.dev
